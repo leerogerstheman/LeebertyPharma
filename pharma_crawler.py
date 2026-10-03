@@ -46,7 +46,21 @@ APP_VERSION = "1.0.0"
 APP_TITLE = "药学数据爬虫 PharmaCrawler"
 APP_SUBTITLE = "FDA 药品数据 · PubMed 药学文献"
 
-PROGRAM_DIR = Path(__file__).resolve().parent
+def _program_dir() -> Path:
+    """程序所在目录（用户能看到的那个目录）。
+
+    ⚠️ 打包成 exe 后不能直接用 ``__file__``：PyInstaller 的 one-folder 模式下，
+    代码全在 ``_internal/`` 里，``__file__`` 指向 ``_internal/``，
+    于是数据会写进 ``_internal\\library`` —— 用户根本找不到，
+    删 ``_internal`` 时还会把数据一起删掉。
+    冻结时应该用 ``sys.executable``（即 exe 本身）所在目录。
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+PROGRAM_DIR = _program_dir()
 
 # --------------------------------------------------------------------------------------
 # 常量：数据源定义
@@ -742,14 +756,36 @@ def default_config(program_dir: Path) -> Dict[str, Any]:
     }
 
 
+def bundled_dir() -> Optional[Path]:
+    """打包后随附资源所在目录（``_internal``）。
+
+    冻结时 ``PROGRAM_DIR`` 是 exe 所在目录（用户可见、可写），
+    但随包分发的 config.json 被 PyInstaller 放进 ``_internal``。
+    所以找配置文件要**两处都找**：先找 exe 旁边（用户可自行修改的那份），
+    找不到再回落到包内自带的默认值。
+    """
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            return Path(meipass)
+        return Path(sys.executable).resolve().parent / "_internal"
+    return None
+
+
 def find_config_path(program_dir: Path, explicit: Optional[str]) -> Optional[Path]:
     if explicit:
         p = Path(explicit)
         return p if p.exists() else None
-    for name in ("config.json", "pharma_config.json"):
-        p = program_dir / name
-        if p.exists():
-            return p
+    # 先看用户可见的 exe 旁边（优先，便于用户直接改），再看包内自带
+    candidates: List[Path] = [program_dir]
+    bundled = bundled_dir()
+    if bundled is not None and bundled != program_dir:
+        candidates.append(bundled)
+    for base in candidates:
+        for name in ("config.json", "pharma_config.json"):
+            p = base / name
+            if p.exists():
+                return p
     return None
 
 
