@@ -19,31 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----------------------------------------------------------------------------
-DATA SOURCE NOTICES
----------------------------------------------------------------------------
-
-This software retrieves data from third-party public sources. The data itself
-is subject to the terms of those sources, which are separate from this license:
-
-* openFDA (U.S. Food and Drug Administration)
-  Data is in the public domain under CC0 1.0. Attribution is requested but not
-  required. Suggested citation:
-      Data provided by the U.S. Food and Drug Administration (https://open.fda.gov)
-  The FDA states this data is unvalidated and must not be used for medical
-  decisions. FDA reserves the right to restrict access for usage that appears
-  to exceed or circumvent documented rate limits.
-
-* PubMed / NCBI E-utilities (U.S. National Library of Medicine)
-  NLM's disclaimer and copyright notice must be evident to users of any product
-  built on this data. PubMed abstracts may be protected by copyright;
-  redistribution beyond fair use requires permission from the rights holder.
-  NCBI does not permit scripting against its web pages — use E-utilities only.
-
-* DailyMed (U.S. National Library of Medicine)
-  Acknowledge NLM as the source. Do not use the PMC/DailyMed wordmarks or logos.
-  Do not imply NLM or NIH endorsement.
-
-Users of this software are responsible for complying with the terms of use of
-each upstream data source.

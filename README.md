@@ -254,8 +254,15 @@ python -m unittest discover -p "test_*.py"
 
 ## 许可
 
-代码 MIT。数据版权归各来源所有，使用须遵守其条款 —— 详见 [LICENSE](LICENSE) 的数据来源声明。
+**代码**以 MIT 许可发布，见 [LICENSE](LICENSE)。
+
+**所抓取的数据**版权归各上游来源所有，MIT 许可**不覆盖**这些数据 ——
+使用须遵守各自的条款，详见 [DATA_SOURCES_LICENSE.md](DATA_SOURCES_LICENSE.md)。
+
+要点：
 
 - openFDA 数据为公有领域（CC0 1.0）。建议署名：
   `Data provided by the U.S. Food and Drug Administration (https://open.fda.gov)`
 - NLM 免责声明与版权声明须对使用者可见；不得使用 PMC/DailyMed 标识；不得暗示 NLM/NIH 背书。
+- ⚠️ 遵守上游条款是**使用者自身的责任**。程序内置限流与退避机制以帮助合规，
+  但不能替代你对条款的阅读。
