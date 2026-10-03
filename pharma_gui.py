@@ -1472,9 +1472,15 @@ class PharmaGUI:
 
         out_dir = self.e_out.get().strip()
         if out_dir and out_dir != str(self.cfg.get("output_dir")):
-            self.cfg["output_dir"] = out_dir
-            self.lib = Library(Path(out_dir))
+            # 走与 CLI 同一个解析函数：用户在输入框里填相对路径（如 library）时，
+            # 必须相对程序目录解析，而不是相对启动 GUI 时的工作目录。
+            from pharma_crawler import resolve_output_dir
+            resolved = resolve_output_dir(out_dir, self.program_dir)
+            self.cfg["output_dir"] = str(resolved)
+            self.lib = Library(resolved)
             self.lib.ensure()
+            self.e_out.delete(0, "end")
+            self.e_out.insert(0, str(resolved))
         try:
             rps = float(self.e_rps.get().strip() or "3.0")
             self.cfg["requests_per_second"] = rps

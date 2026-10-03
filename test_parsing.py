@@ -1167,5 +1167,88 @@ class TestMiscHelpers(unittest.TestCase):
         self.assertIn("500", str(e))
 
 
+class TestResolveOutputDir(unittest.TestCase):
+    """output_dir 的解析规则。
+
+    这里守的是一个真实踩过的坑：仓库里 config.json 曾写成作者机器上的绝对路径
+    ``D:\\PharmaCrawler\\library``。别人克隆到别的盘/别的目录后，程序仍往
+    ``D:\\PharmaCrawler\\library`` 写 —— 要么写到别人的项目里，要么因为目录不存在而报错。
+    这就是"发布出去的包在作者机器上正常、在别人机器上不对"的典型成因。
+
+    改成相对路径 ``library`` 后又暴露出第二个坑：相对路径若按**当前工作目录**解析，
+    数据落在哪儿就取决于用户从哪敲的命令。双击 gui.bat 时 .bat 里的
+    ``cd /d "%~dp0"`` 恰好把工作目录设成程序目录，看起来正常；
+    但用 ``python D:\\path\\to\\pharma_crawler.py``、桌面快捷方式或计划任务启动时，
+    工作目录是别处，数据就悄悄写到那个别处去了。
+
+    正确规则：相对路径相对**程序所在目录**解析。
+    """
+
+    def setUp(self):
+        self.program_dir = Path(r"D:\SomePortableFolder\PharmaCrawler")
+
+    def test_relative_resolves_against_program_dir_not_cwd(self):
+        """核心断言：相对路径拼到程序目录下，与当前工作目录无关。"""
+        got = pc.resolve_output_dir("library", self.program_dir)
+        self.assertEqual(got, self.program_dir / "library")
+        self.assertTrue(got.is_absolute())
+
+    def test_relative_with_subdir(self):
+        self.assertEqual(
+            pc.resolve_output_dir("data/out", self.program_dir),
+            self.program_dir / "data" / "out",
+        )
+
+    def test_absolute_is_respected(self):
+        """绝对路径是用户明确指定，必须原样保留 —— 不能"好心"拼到程序目录下。"""
+        self.assertEqual(
+            pc.resolve_output_dir(r"E:\PharmaData", self.program_dir),
+            Path(r"E:\PharmaData"),
+        )
+
+    def test_empty_falls_back_to_library(self):
+        for empty in ("", "   ", None):
+            self.assertEqual(
+                pc.resolve_output_dir(empty, self.program_dir),
+                self.program_dir / "library",
+            )
+
+    def test_result_is_independent_of_cwd(self):
+        """切换工作目录，解析结果必须完全不变。"""
+        import os
+        import tempfile
+
+        before = pc.resolve_output_dir("library", self.program_dir)
+        original = os.getcwd()
+        # 必须切到一个**真实存在**的目录：program_dir 是虚构路径，不能 chdir 进去
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                os.chdir(tmp)
+                after = pc.resolve_output_dir("library", self.program_dir)
+            finally:
+                os.chdir(original)
+        self.assertEqual(before, after)
+
+    def test_shipped_config_is_portable(self):
+        """仓库里自带的 config.json 必须是相对路径。
+
+        这条直接检查发布产物本身：只要有人把 output_dir 改回绝对路径，
+        测试立刻失败 —— 这正是我们希望被拦住的回归。
+        """
+        import json
+
+        cfg_path = Path(pc.__file__).resolve().parent / "config.json"
+        if not cfg_path.exists():
+            self.skipTest("找不到 config.json（可能未随包分发）")
+        data = json.loads(cfg_path.read_text(encoding="utf-8"))
+        out = str(data.get("output_dir") or "")
+        self.assertTrue(out, "config.json 必须有 output_dir")
+        self.assertFalse(
+            Path(out).is_absolute(),
+            f"config.json 的 output_dir 是绝对路径 {out!r}；"
+            f"这会让别人克隆到其他路径后写错位置，应改为相对路径如 'library'",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

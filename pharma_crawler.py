@@ -4003,7 +4003,15 @@ def cmd_selftest(args: argparse.Namespace, program_dir: Path) -> int:
     """
     cfg, cfg_path = load_config(program_dir, getattr(args, "config", None))
     resolve_credentials(cfg, args)
-    lib = Library(Path(cfg["output_dir"]))
+    # 便携性检查要在解析之前做 —— 解析后 output_dir 必然是绝对路径，
+    # 拿它去判断会把"本来就写了绝对路径"和"相对路径被正常解析"混为一谈。
+    raw_out = str(cfg.get("output_dir") or "")
+    out_was_absolute = os.path.isabs(raw_out)
+    # 与 prepare_cfg 走同一个解析，否则自检会显示原始配置值（如 "library"），
+    # 用户看不出数据究竟落在哪 —— 而这正是自检该回答的问题之一
+    out_dir = resolve_output_dir(cfg.get("output_dir"), program_dir)
+    cfg["output_dir"] = str(out_dir)
+    lib = Library(out_dir)
     offline = parse_bool(getattr(args, "offline", False))
 
     ok_n = warn_n = fail_n = 0
@@ -4048,6 +4056,14 @@ def cmd_selftest(args: argparse.Namespace, program_dir: Path) -> int:
     except OSError as exc:
         fail(f"数据目录不可写：{lib.root}（{exc}）")
         return 1
+
+    # 便携性检查：output_dir 若被写成了绝对路径，说明配置可能焊死在作者机器上，
+    # 别人克隆到别的路径就会写错地方。默认应为相对路径。
+    if out_was_absolute:
+        warn(f"数据目录在配置里写的是绝对路径（{raw_out}）—— 换台机器/换路径可能失效；"
+             f"想便携可改成相对路径如 library")
+    else:
+        ok("数据目录用的是相对路径（整个文件夹可随意搬迁）")
 
     # 磁盘空间
     try:
@@ -4213,13 +4229,37 @@ def cmd_selftest(args: argparse.Namespace, program_dir: Path) -> int:
 # --------------------------------------------------------------------------------------
 
 
+def resolve_output_dir(value: Any, program_dir: Path) -> Path:
+    """把 output_dir 解析成绝对路径。
+
+    ⚠️ 相对路径必须相对**程序所在目录**解析，不能相对当前工作目录。
+    否则数据落在哪儿取决于用户是从哪里敲的命令：
+    双击 gui.bat 时 .bat 里的 `cd /d "%~dp0"` 恰好把工作目录设成了程序目录，
+    看起来一切正常；但用 `python D:\\path\\to\\pharma_crawler.py`、
+    桌面快捷方式或计划任务启动时，工作目录是别处，
+    数据就会**悄悄写到那个别处去**（或者写进一个用户根本没预期的目录）。
+
+    这也是为什么仓库里的 config.json 用相对路径 "library" ——
+    绝对路径会把作者机器上的 D:\\PharmaCrawler 焊死，别人克隆到别处就错了。
+    相对路径 + 相对程序目录解析，两者结合才既便携又确定。
+    """
+    raw = str(value or "").strip()
+    if not raw:
+        return program_dir / "library"
+    p = Path(raw).expanduser()
+    if p.is_absolute():
+        return p
+    return program_dir / p
+
+
 def prepare_cfg(args: argparse.Namespace, program_dir: Path) -> Tuple[Dict[str, Any], Library]:
     cfg, cfg_path = load_config(program_dir, getattr(args, "config", None))
     resolve_credentials(cfg, args)
 
     out_dir = getattr(args, "out", None) or cfg.get("output_dir")
-    if out_dir:
-        cfg["output_dir"] = str(out_dir)
+    # 立刻解析成绝对路径并写回，后续所有取用点都拿到确定的值
+    resolved = resolve_output_dir(out_dir, program_dir)
+    cfg["output_dir"] = str(resolved)
 
     # 命令行覆盖配置
     for arg_name, cfg_name in (
@@ -4235,7 +4275,7 @@ def prepare_cfg(args: argparse.Namespace, program_dir: Path) -> Tuple[Dict[str, 
     if getattr(args, "rps", None):
         cfg["requests_per_second"] = float(args.rps)
 
-    lib = Library(Path(cfg["output_dir"]))
+    lib = Library(resolved)
     lib.ensure()
     return cfg, lib
 
