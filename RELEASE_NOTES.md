@@ -7,7 +7,17 @@
 
 ## 📦 下载与安装
 
-**方式一：直接跑源码（推荐，无需编译）**
+**方式一：便携版（推荐，无需装 Python）**
+
+下载 `PharmaCrawler-v1.0.0-portable-win64.zip` → **解压整个文件夹** → 双击 `START.bat`。
+
+- 内置 Python 运行时，**不需要装 Python，也不需要 pip install**
+- ⚠️ **请整个文件夹一起用**，不要把 `PharmaCrawler.exe` 单独拖出来 ——
+  旁边的 `_internal\` 是程序的一部分，缺了就启动不了
+- 数据存在文件夹内的 `library\`，整个文件夹可以随便挪到别的盘、别的路径
+- 详细说明见包内 `使用说明.txt`
+
+**方式二：从源码运行（跨平台）**
 
 1. 下载本仓库源码（`Code` → `Download ZIP`，或 `git clone`）
 2. 确认已装 **Python 3.9+**，且带 tkinter（官方安装包默认自带）
@@ -15,14 +25,14 @@
 
 > 纯标准库实现，**不需要 `pip install` 任何东西**。
 
-**方式二：自己打包 exe**
+**方式三：自己打包 exe**
 
 ```powershell
 pip install pyinstaller
 pyinstaller PharmaCrawler.spec
 ```
 
-> exe 内含配置与辅助文件，请**整目录解压**，不要把 exe 单独拎走。
+> 打包后记得把 `config.json` 复制到 exe 旁边，方便日后修改配置。
 
 ---
 
@@ -168,6 +178,44 @@ python pharma_crawler.py auth set --openfda-key 你的KEY --pubmed-key 你的KEY
 - 检索式构造器（GUI 里下拉选字段，不用记语法）
 - 定时增量爬取
 - 界面中英双语
+
+---
+
+## 🐛 发布后修正的两个缺陷
+
+v1.0.0 的初版源码存在两个**便携性**问题 —— 都属于"作者机器上一切正常、
+发出去就不对"的类型，已修复并补了回归测试。
+
+### 1. 数据目录写死在作者机器上
+
+`config.json` 里原本写的是绝对路径 `D:\PharmaCrawler\library`。
+别人克隆到别的盘或别的目录后，程序仍往那个位置写：要么污染别人的项目，
+要么因为目录不存在而报错。
+
+改为相对路径 `library` 后，又暴露出第二个更隐蔽的问题：
+
+### 2. 相对路径按"当前工作目录"解析，而不是程序目录
+
+原实现直接 `Path(cfg["output_dir"])`。双击 `gui.bat` 时，
+`.bat` 里的 `cd /d "%~dp0"` 恰好把工作目录设成了程序目录，**看起来完全正常**；
+但改用 `python D:\path\to\pharma_crawler.py`、桌面快捷方式或计划任务启动时，
+工作目录是别处，数据就悄悄写到那个别处去了。
+
+**修复**：新增 `resolve_output_dir()` —— 相对路径一律相对**程序所在目录**解析，
+绝对路径原样保留。`selftest` 现在会打印数据目录的**实际绝对路径**，
+并检查配置是否被写成了绝对路径。
+
+### 3. 打包成 exe 后数据落进 `_internal\`
+
+构建便携版时发现：PyInstaller 把代码放进 `_internal\`，
+而程序目录取自 `__file__`，于是数据写进 `_internal\library\` ——
+用户在资源管理器里根本看不到，删掉 `_internal\` 还会把数据一起删掉。
+
+**修复**：冻结时改用 `sys.executable` 所在目录（即 exe 旁边）。
+配置文件也在 exe 旁边留一份，用户可以直接编辑。
+
+> 验证方式：把 ZIP 解压到随机目录，从 `C:\Windows` 启动，
+> 确认数据落在解压目录内、`C:\Windows` 下无任何残留。
 
 ---
 
