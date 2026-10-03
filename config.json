@@ -1,0 +1,85 @@
+{
+  "_说明": "PharmaCrawler 配置文件。改完保存即生效；命令行参数与图形界面里的设置优先级更高，会覆盖这里的同名项。",
+  "_输出目录": "所有数据都放在这个目录下（默认在 D 盘）",
+  "output_dir": "D:\\PharmaCrawler\\library",
+
+  "_openfda_key": "强烈建议申请（免费）：https://open.fda.gov/apis/authentication/ 。不填：240 次/分钟、1000 次/天；填了：240 次/分钟、120000 次/天 —— 差 120 倍。留空也能跑，只是每天爬不了多少。注意：key 作为查询参数必须排在第一位，程序已自动处理。",
+  "openfda_api_key": "",
+
+  "_pubmed_key": "NCBI API key（可选但推荐）：登录 NCBI -> Account settings -> API Key Management 创建。不填限 3 请求/秒，填了 10 请求/秒。注意：重新生成 key 会让旧 key 立刻失效。",
+  "pubmed_api_key": "",
+  "_pubmed_email": "强烈建议填写。NCBI 明文规定：只有把 tool 和 email 注册到 eutils@ncbi.nlm.nih.gov，才能在封 IP 后解封；光在请求里带上是不够的。",
+  "pubmed_email": "",
+  "pubmed_tool": "PharmaCrawler",
+
+  "_代理": "国内直连不通时填写，例如 http://127.0.0.1:7890（Clash 默认端口）或 http://127.0.0.1:10809（v2ray）",
+  "proxy": "",
+  "verify_ssl": true,
+
+  "_速率": "每秒请求数。不要盲目调高——上游会封 IP。实测上游规定：openFDA 每分钟 240 次（有无 key 都一样）；PubMed 无 key 每秒 3 次、有 key 每秒 10 次。命中限流时程序会自动指数退避，不必手动降速。",
+  "requests_per_second": 3.0,
+  "max_retries": 5,
+  "timeout": 60,
+  "concurrency": 4,
+
+  "_分页": "openFDA：limit 上限 1000、skip 上限 25000，可达窗口 26000 条，超出后程序自动改用 search_after 游标滚动。PubMed：retmax 上限 9999（⚠️ 不是 10000，官方文档写错了『实测确认』）、retstart 上限 9998。",
+  "page_size_openfda": 1000,
+  "page_size_pubmed": 500,
+  "pubmed_batch_size": 200,
+
+  "_采集范围": "默认勾选哪些 openFDA 端点。可用：label(说明书标签) / enforcement(召回) / event(不良事件) / ndc(NDC目录) / drugsfda(批准信息) / shortages(药品短缺) / orangebook(橙皮书)。",
+  "openfda_datasets": ["label", "enforcement", "ndc", "drugsfda", "shortages", "orangebook"],
+
+  "_PubMed 默认值": "留空即由命令行/GUI 传入",
+  "pubmed_term": "",
+  "pubmed_sort": "pub_date",
+  "pubmed_datetype": "pdat",
+  "pubmed_mindate": "",
+  "pubmed_maxdate": "",
+  "pubmed_reldate": "",
+  "pubmed_retmode": "xml",
+
+  "_时间范围": "只收这个时间范围内发布的记录。格式 2024-01-31 或 2024/01/31 或 2024年1月31日。留空=不限制。结束日期包含当天。对没有日期字段的 openFDA 端点（ndc/drugsfda/shortages/orangebook）该设置无效。",
+  "date_from": "",
+  "date_to": "",
+
+  "_突破上限的策略": "auto=自动判断；year=按年切分；month=按月切分；none=不切分（到上限就停）。PubMed 超出 9999 条时按『年→月→日』自动递归二分，不会硬翻页。",
+  "segment_strategy": "auto",
+
+  "_每次最多处理多少条": "0 = 不限制（推荐）。填非 0 会硬性截断本次运行，容易误以为爬不全。",
+  "max_records_per_run": 0,
+
+  "_导出": "爬完自动重建索引。Excel 是纯标准库实现的多工作表 xlsx（按来源、按数据集拆分 + 统计页）。",
+  "auto_export": true,
+  "export_excel": true,
+  "export_csv": true,
+  "export_sqlite": true,
+  "export_markdown": true,
+  "export_ris": true,
+  "export_bibtex": false,
+  "export_medline": true,
+
+  "_正文抓取": "PMC 全文取用方式注意：旧的 oa.fcgi 接口已于 2026-08 下线，FTP 打包文件也被移除，现改用 S3 桶 pmc-oa-opendata。详见 docs/DATA_SOURCE_NOTES.md 第 4.8 节。",
+  "fetch_pmc_fulltext": false,
+  "download_pdf": false,
+
+  "_分类规则": "按物质名/期刊/检索词建立硬链接分类目录（同一磁盘不额外占空间）。max_tags_per_record=每条记录最多归入几个物质目录。",
+  "max_tags_per_record": 8,
+  "make_substance_links": true,
+  "make_journal_links": true,
+  "make_query_links": true,
+  "_停用词": "这些词不会被用来建分类目录（PubMed 的 MeSH 里大量出现，建目录会得到几百个无意义文件夹）",
+  "tag_stopwords": [
+    "human", "humans", "male", "female", "adult", "aged", "middle aged",
+    "Animals", "Mice", "Rats", "English Abstract", "Review", "Letter"
+  ],
+
+  "_界面": "gui_dark=true 启动时用深色主题（Material Design 3 基线暗色方案）",
+  "gui_dark": false,
+
+  "_接口端点覆盖": "上游改版导致接口地址变化时，可在这里覆盖，无需改代码。键名形如 openfda_label、openfda_event。不填则用内置默认。",
+  "endpoints": {},
+
+  "_User-Agent": "一般不用改。但限流按 IP 计，设置可识别 UA 是基本礼貌。",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 PharmaCrawler/1.0.0"
+}
