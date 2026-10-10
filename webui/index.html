@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>药学数据爬虫 PharmaCrawler</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <div>
+      <h1>药学数据爬虫</h1>
+      <p class="brand-sub">PharmaCrawler · 网页版 <span id="ver"></span></p>
+    </div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="chip" id="credChip">凭据读取中…</div>
+  <div class="chip" id="rangeChip"></div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="crawl" role="tab">抓取</button>
+  <button class="tab" data-tab="search" role="tab">检索</button>
+  <button class="tab" data-tab="library" role="tab">图库</button>
+  <button class="tab" data-tab="settings" role="tab">设置</button>
+</nav>
+
+<main>
+
+  <!-- ===================================================== 抓取 -->
+  <section class="panel active" id="panel-crawl">
+    <div class="grid">
+      <div class="card">
+        <h2>抓什么</h2>
+        <p class="hint">勾选 FDA 端点；PubMed 文献可同时抓取。两边的查询语法不同，见
+          <code>docs/DATA_SOURCE_NOTES.md</code>。</p>
+        <div class="ds-list" id="dsList"></div>
+        <label class="check"><input type="checkbox" id="allDs"> 全选 FDA 端点</label>
+
+        <label class="field">
+          <span>openFDA 查询条件 <em>（--search）</em></span>
+          <input type="text" id="searchInput" placeholder='openfda.brand_name:"aspirin"'>
+        </label>
+        <label class="field">
+          <span>PubMed 检索式 <em>（--term）</em></span>
+          <input type="text" id="termInput" placeholder='aspirin[Title/Abstract]'>
+        </label>
+        <div class="row row-2">
+          <label class="field">
+            <span>本次上限（0 = 不限）</span>
+            <input type="number" id="maxInput" min="0" step="10" value="0">
+          </label>
+          <label class="field">
+            <span>PubMed 排序</span>
+            <input type="text" id="sortInput" placeholder="pub_date">
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn btn-primary" id="startBtn">开始抓取</button>
+          <button class="btn" id="stopBtn" disabled>安全停止</button>
+          <button class="btn btn-text" id="planBtn">只看计划</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>进度</h2>
+        <div class="progress"><div class="bar" id="bar"></div></div>
+        <div class="counters">
+          <div><b id="cFetched">0</b><span>已获取</span></div>
+          <div><b id="cStored">0</b><span>入库</span></div>
+          <div><b id="cSkipped">0</b><span>跳过</span></div>
+          <div><b id="cFailed">0</b><span>失败</span></div>
+          <div><b id="cElapsed">0s</b><span>耗时</span></div>
+        </div>
+        <pre class="log" id="log">等待开始…</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== 检索 -->
+  <section class="panel" id="panel-search">
+    <div class="card">
+      <h2>本地检索</h2>
+      <p class="hint">在已入库的记录里查。这些条件都作用在本地数据上，不联网。</p>
+      <div class="row row-3">
+        <label class="field">
+          <span>关键词</span>
+          <input type="text" id="kwInput" placeholder="aspirin">
+        </label>
+        <label class="field">
+          <span>搜索范围</span>
+          <select id="scopeSel">
+            <option value="all">全部字段</option>
+            <option value="title">仅标题</option>
+            <option value="abstract">仅摘要</option>
+            <option value="name">仅药品名称</option>
+            <option value="id">仅标识符</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>来源</span>
+          <select id="srcSel"><option value="">全部</option></select>
+        </label>
+      </div>
+      <div class="row row-3">
+        <label class="field">
+          <span>数据集</span>
+          <select id="dsSel"><option value="">全部</option></select>
+        </label>
+        <label class="field">
+          <span>年份</span>
+          <select id="yearSel"><option value="">全部</option></select>
+        </label>
+        <label class="field">
+          <span>时间范围</span>
+          <div class="row">
+            <input type="text" id="fromInput" placeholder="2024-01-31">
+            <input type="text" id="toInput" placeholder="2024-12-31">
+          </div>
+        </label>
+      </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="absChk"> 必须有摘要</label>
+        <label class="check"><input type="checkbox" id="doiChk"> 必须有 DOI</label>
+        <label class="check"><input type="checkbox" id="allChk"> 关键词全部命中</label>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" id="searchBtn">搜索</button>
+        <button class="btn btn-text" id="clearBtn">清空条件</button>
+        <button class="btn" id="exportResultsBtn">导出命中结果</button>
+        <span class="hits" id="hits"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <table class="table">
+        <thead><tr><th>来源</th><th>数据集</th><th>标题</th><th>日期</th><th>期刊</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="6" class="empty">还没有检索结果。</td></tr></tbody>
+      </table>
+      <p class="hint" id="tableNote"></p>
+    </div>
+  </section>
+
+  <!-- ===================================================== 图库 -->
+  <section class="panel" id="panel-library">
+    <div class="grid">
+      <div class="card">
+        <h2>图库统计</h2>
+        <pre class="stats" id="statsBox">读取中…</pre>
+        <div class="row">
+          <button class="btn" id="rebuildBtn">重建索引与分类</button>
+          <button class="btn btn-text" id="statsBtn">刷新</button>
+        </div>
+        <p class="hint" id="rebuildNote"></p>
+      </div>
+      <div class="card">
+        <h2>导出</h2>
+        <p class="hint">导出全部入库记录。Excel 是纯标准库实现的多工作表 xlsx。</p>
+        <div class="formats" id="formats"></div>
+        <p class="hint" id="exportNote"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== 设置 -->
+  <section class="panel" id="panel-settings">
+    <div class="card">
+      <h2>抓取设置</h2>
+      <p class="hint">改完点保存，写回 <code>config.json</code>（只改下面这几项，其余原样保留）。</p>
+      <div class="row row-3">
+        <label class="field"><span>每秒请求数</span><input type="number" id="sRps" step="0.5" min="0.5"></label>
+        <label class="field"><span>并发</span><input type="number" id="sConc" min="1" max="16"></label>
+        <label class="field"><span>超时（秒）</span><input type="number" id="sTimeout" min="5"></label>
+      </div>
+      <div class="row row-3">
+        <label class="field"><span>重试次数</span><input type="number" id="sRetry" min="0" max="20"></label>
+        <label class="field"><span>切分策略</span>
+          <select id="sSegment">
+            <option value="auto">auto 自动判断</option>
+            <option value="year">year 按年切分</option>
+            <option value="month">month 按月切分</option>
+            <option value="none">none 不切分</option>
+          </select>
+        </label>
+        <label class="field"><span>每次上限（0 = 不限）</span><input type="number" id="sMax" min="0"></label>
+      </div>
+      <div class="row row-3">
+        <label class="field"><span>起始日期</span><input type="text" id="sFrom" placeholder="2024-01-31"></label>
+        <label class="field"><span>结束日期</span><input type="text" id="sTo" placeholder="2024-12-31"></label>
+        <label class="field"><span>代理</span><input type="text" id="sProxy" placeholder="http://127.0.0.1:7890"></label>
+      </div>
+      <div class="row row-3">
+        <label class="field"><span>PubMed 邮箱</span><input type="text" id="sEmail"></label>
+        <label class="field"><span>PubMed 排序</span><input type="text" id="sSort"></label>
+        <label class="field"><span>PubMed reldate</span><input type="text" id="sReldays"></label>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" id="saveBtn">保存设置</button>
+        <span class="hint" id="saveNote"></span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="dialog-host" id="dialogHost" hidden>
+  <div class="dialog" role="dialog" aria-modal="true">
+    <header><h3 id="dlgTitle">记录详情</h3><button class="btn btn-text" id="dlgClose">关闭</button></header>
+    <pre class="dlg-body" id="dlgBody"></pre>
+  </div>
+</div>
+
+<div class="toast-host" id="toastHost"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

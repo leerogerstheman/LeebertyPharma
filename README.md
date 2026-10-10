@@ -13,6 +13,20 @@
 
 **Windows（推荐，无需装 Python）**：解压后双击 `gui.bat`。
 
+**网页版**：双击 `web.bat`（或 `python webui.py`），界面在浏览器里打开。
+
+与 `gui.bat` 的区别是**它不需要 tkinter**——界面由标准库 `http.server` 提供。有些环境里
+自带 Python 没编进 tkinter，`gui.bat` 会退回命令行模式，而网页版照常可用。后端完全是
+同一套 `pharma_crawler.py`，检索结果、统计数字、导出文件与桌面版一致。
+
+```powershell
+python webui.py                     # 默认端口 8758，自动打开浏览器
+python webui.py --port 9000 --no-browser
+python webui.py --out D:\另一份数据   # 换数据目录（与命令行版 --out 同义）
+```
+
+只监听 `127.0.0.1`，不对外网开放。
+
 **已装 Python**：`git clone` 本仓库后双击 `gui.bat`，或命令行：
 
 ```powershell
