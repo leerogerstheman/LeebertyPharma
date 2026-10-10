@@ -192,6 +192,10 @@ input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -
   background: rgba(0,0,0,.32);
   display: flex; align-items: center; justify-content: center; padding: 5vh 20px;
 }
+/* 必须显式写这一条：上面的 .dialog-host { display: flex } 与 UA 的
+   [hidden] { display: none } 优先级相同（都是 0,1,0），而本文件在后面，
+   于是 flex 会赢——弹层遮罩就永远盖在页面上了。 */
+.dialog-host[hidden] { display: none; }
 .dialog {
   background: var(--sc-low); border-radius: var(--r-xl);
   width: 100%; max-width: 880px; max-height: 86vh;
